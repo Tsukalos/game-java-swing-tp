@@ -1,6 +1,5 @@
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.awt.event.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.ImageObserver;
 import java.awt.image.Raster;
@@ -18,15 +17,17 @@ class Client extends JFrame implements Runnable{
     DrawArea drawArea;
     volatile Vector<GameObject> objects;
     Socket socket;
-    ObjectInputStream is;
-    DataOutputStream os;
-    BufferedImage ball,bar;
+    BufferedReader in;
+    BufferedWriter out;
+    int playerInput = 0;
+    BufferedImage ball,bar,block;
     Client(){
         super("Trabalho");
         try{
             socket = new Socket("127.0.0.1", 87);
-            is = new ObjectInputStream(socket.getInputStream());
-            os = new DataOutputStream(socket.getOutputStream());
+
+            in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             
         }catch(IOException e){
             System.out.println("Erro na conexão ao servidor \n"+e);
@@ -35,6 +36,7 @@ class Client extends JFrame implements Runnable{
         try{
             ball = ImageIO.read(new File("sprites/ball.png"));
             bar = ImageIO.read(new File("sprites/bar.png"));
+            block = ImageIO.read(new File("sprites/block.png"));
         }catch(IOException e){}
        
 
@@ -43,6 +45,27 @@ class Client extends JFrame implements Runnable{
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         add(drawArea);
         pack();
+        addKeyListener(new KeyAdapter(){
+            public void keyPressed(KeyEvent e) {
+                switch(e.getKeyCode()){
+                    case KeyEvent.VK_RIGHT:
+                        playerInput = 1;
+                    break;
+                    case KeyEvent.VK_LEFT:
+                        playerInput = -1;
+                    break;
+                }
+            }
+        });
+        Timer t1 = new Timer(200, new ActionListener(){
+            public void actionPerformed(ActionEvent e) {
+                try{
+                    out.write(String.valueOf(playerInput)+"\n");
+                    out.flush();
+                }catch(IOException er){}
+            }
+        });
+        t1.start();
         setVisible(true);
         new Thread(this).start();
 
@@ -54,8 +77,8 @@ class Client extends JFrame implements Runnable{
             Timer timer = new Timer(40, this);
             timer.setCoalesce(true);
             timer.start();
-            setDoubleBuffered(true);
             setLayout(null);
+            
         }
 
         public void paintComponent(Graphics g){
@@ -84,34 +107,67 @@ class Client extends JFrame implements Runnable{
     public void run(){
         while(!socket.isClosed()){
             try {
-                GetElements((GameState)is.readObject());
+                if(in.ready()){
+                    GetElements(in);
+                }
             } catch (Exception e) {
                 System.out.println(e);
                 try{
                     socket.close();
                     socket = new Socket("127.0.0.1", 87);
-                    if(!socket.isConnected()) break;
+                    if(!socket.isConnected()){
+                        socket.close();
+                        break;
+                    } 
                 }catch(IOException er){
                     System.out.println(er);
                 }
             }
         }
+        System.exit(1);
         System.out.println("Close");
     }
 
-    void GetElements(GameState state){
+    void GetElements(BufferedReader in) throws IOException{
+        StringTokenizer st = new StringTokenizer(in.readLine()," ");
+        String type, posx, posy, active = null;
+        BufferedImage i = null;
         objects.clear();
-        for(GameElement var : state.elementList) {
-            BufferedImage i = null;
-            if(var.id == GameState.ObjectId.Bar){
-                i = bar;
+        while(st.hasMoreTokens()){
+            type = st.nextToken();
+            posx = st.nextToken();
+            posy = st.nextToken();
+            active = st.nextToken();
+
+            switch(type){
+                case "Ball":
+                    i = ball;
+                break;
+                case "Bar":
+                    i = bar;
+                break;
+                case "Block":
+                    i = block;
+                break;
             }
-            if(var.id == GameState.ObjectId.Ball){
-                i = ball;
-            }
-            objects.add(new GameObject(var.pos, i, this));
+            objects.add(new GameObject(new Vector2(Integer.parseInt(posx), Integer.parseInt(posy)), i, this));
         }
+        
     }
+
+    // void GetElements(GameState state){
+    //     objects.clear();
+    //     for(GameElement var : state.elementList) {
+    //         BufferedImage i = null;
+    //         if(var.id == GameState.ObjectId.Bar){
+    //             i = bar;
+    //         }
+    //         if(var.id == GameState.ObjectId.Ball){
+    //             i = ball;
+    //         }
+    //         objects.add(new GameObject(var.pos, i, this));
+    //     }
+    // }
 
 
 }
