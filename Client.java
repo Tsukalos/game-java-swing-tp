@@ -7,7 +7,6 @@ import java.awt.image.Raster;
 import javax.swing.*;
 import javax.swing.Timer;
 
-
 import java.io.*;
 import javax.imageio.*;
 import java.util.*;
@@ -21,6 +20,7 @@ class Client extends JFrame implements Runnable{
     BufferedWriter out;
     int playerInput = 0;
     BufferedImage ball,bar,block;
+    JLabel scoreP1, scoreP2;
     Client(){
         super("Trabalho");
         try{
@@ -75,6 +75,14 @@ class Client extends JFrame implements Runnable{
         DrawArea(Vector<GameObject> os){
             this.os = os;
             Timer timer = new Timer(40, this);
+            scoreP1 = new JLabel("0");
+            scoreP1.setBounds(400-25, 600/2 - 200, 100, 100);
+            scoreP1.setFont(new Font("", Font.BOLD, 100));
+            scoreP2 = new JLabel("0"); 
+            scoreP2.setBounds(400-25, 600/2 + 100, 100, 100);
+            scoreP2.setFont(new Font("", Font.BOLD, 100));
+            this.add(scoreP1);
+            this.add(scoreP2);
             timer.setCoalesce(true);
             timer.start();
             setLayout(null);
@@ -128,46 +136,61 @@ class Client extends JFrame implements Runnable{
         System.out.println("Close");
     }
 
-    void GetElements(BufferedReader in) throws IOException{
-        StringTokenizer st = new StringTokenizer(in.readLine()," ");
-        String type, posx, posy, active = null;
-        BufferedImage i = null;
-        objects.clear();
-        while(st.hasMoreTokens()){
-            type = st.nextToken();
-            posx = st.nextToken();
-            posy = st.nextToken();
-            active = st.nextToken();
+    void GetElements(BufferedReader in) throws Exception{
+        String a;
+        StringTokenizer st = new StringTokenizer(a = in.readLine()," ");
+        if(a.contentEquals("Point 1")||a.contentEquals("Point 2")){
+            System.out.println("a");
+            UpdateScore(Integer.parseInt(String.valueOf(a.charAt(a.length()-1))));
+        }else{
+            String type, posx, posy, active = null;
+            BufferedImage i = null;
+            objects.clear();
+            while(st.hasMoreTokens()){
+                type = st.nextToken();
+                posx = st.nextToken();
+                posy = st.nextToken();
+                active = st.nextToken();
 
-            switch(type){
-                case "Ball":
-                    i = ball;
-                break;
-                case "Bar":
-                    i = bar;
-                break;
-                case "Block":
-                    i = block;
-                break;
+                switch(type){
+                    case "Ball":
+                        i = ball;
+                    break;
+                    case "Bar":
+                        i = bar;
+                    break;
+                    case "Block":
+                        i = block;
+                    break;
+                }
+                objects.add(new GameObject(new Vector2(Integer.parseInt(posx), Integer.parseInt(posy)), i, this));
             }
-            objects.add(new GameObject(new Vector2(Integer.parseInt(posx), Integer.parseInt(posy)), i, this));
         }
-        
     }
 
-    // void GetElements(GameState state){
-    //     objects.clear();
-    //     for(GameElement var : state.elementList) {
-    //         BufferedImage i = null;
-    //         if(var.id == GameState.ObjectId.Bar){
-    //             i = bar;
-    //         }
-    //         if(var.id == GameState.ObjectId.Ball){
-    //             i = ball;
-    //         }
-    //         objects.add(new GameObject(var.pos, i, this));
-    //     }
-    // }
+    void UpdateScore(int player){
+        if(player == 1){
+            SwingUtilities.invokeLater(new Runnable(){
+                public void run() {
+                    int a = Integer.parseInt(scoreP1.getText());
+                    a++;
+                    scoreP1.setText(String.valueOf(a));
+                    playerInput = 0;
+                    repaint();
+                }
+            });
+        }else{
+            SwingUtilities.invokeLater(new Runnable(){
+                public void run() {
+                    int a = Integer.parseInt(scoreP2.getText());
+                    a++;
+                    scoreP2.setText(String.valueOf(a));
+                    playerInput = 0;
+                    repaint();
+                }
+            });
+        }
+    }
 
 
 }

@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 
 
+
 class Server{
     public static void main(String[] args) {
         ServerSocket serverSocket = null;
@@ -12,7 +13,7 @@ class Server{
         try {
             serverSocket = new ServerSocket(87);
         } catch (IOException e) {}
-
+        System.out.println("Aguardando...");
         for(int i = 0; i < 2; i++){
             try{
                 Socket s = serverSocket.accept();
@@ -78,9 +79,12 @@ class Game extends Thread{
     final int blockNum = 4;
     Block[] blocks = new Block[blockNum];
     float[] ballDirection = new float[2];
-    float ballSpeed = 10F;
+    float ballSpeed = 5f;
     int barSpeed = 5;
-
+    boolean pointScored = false;
+    final String sp1 = "Point 1\n";
+    final String sp2 = "Point 2\n";
+    String sco = null;
     Random rand = new Random();
 
 
@@ -93,33 +97,32 @@ class Game extends Thread{
     public void run(){
         InitGame();
         do{
+            if(pointScored){
+                ResetGame();
+                pointScored = false;
+            }
             sb.delete(0, sb.length());
             UpdateBars();
             UpdateBall();
             UpdateList();
             try{
-                // Server Thread
                 sleep(36);
             }catch(Exception e){}
         }while(SendData());
     }
 
     void InitGame(){
-
-        
-
         P1bar = new Rectangle(800/2 - 75, 10, 150, 32);
         P2bar = new Rectangle(800/2 - 75, 600 - 10 - 32, 150, 32);
         for(int i = 0; i < blockNum;i++){
             blocks[i] = new Block((800/(2*blockNum)+(i*(800/blockNum))) - 25, 600/2 - 32);
         }
 
-        ballDirection[0] = (rand.nextFloat()*2f - 1f);
-        ballDirection[1] = (rand.nextFloat()*2f - 1f);
-        Ball = new Rectangle((int)800/2 - 20,(int)600/2 - 20,20,20);
+        ballDirection[0] = (rand.nextFloat()+0.4f) * (rand.nextFloat() > 0.5 ? -1f : 1f);
+        ballDirection[1] = (rand.nextFloat()+0.4f) * (rand.nextFloat() > 0.5 ? -1f : 1f);
+        Ball = new Rectangle(400-20,300-20,20,20);
         new Thread(p1).start();
         new Thread(p2).start();
-        //currentState.elementList = initList;
         try {
             for(int i = 5; i > 0; i--){
                 System.out.println("Start in "+i+" s...");
@@ -128,11 +131,34 @@ class Game extends Thread{
         } catch (Exception e) {}
     }
 
+    void ResetGame(){
+        P1bar = new Rectangle(800/2 - 75, 10, 150, 32);
+        P2bar = new Rectangle(800/2 - 75, 600 - 10 - 32, 150, 32);
+        for(int i = 0; i < blockNum;i++){
+            blocks[i] = new Block((800/(2*blockNum)+(i*(800/blockNum))) - 25, 600/2 - 32);
+        }
+
+        ballDirection[0] = (rand.nextFloat()+0.4f) * (rand.nextFloat() > 0.5 ? -1f : 1f);
+        ballDirection[1] = (rand.nextFloat()+0.4f) * (rand.nextFloat() > 0.5 ? -1f : 1f);
+        Ball = new Rectangle((int)800/2 - 20,(int)600/2 - 20,20,20);
+        try {
+            for(int i = 5; i > 0; i--){
+                System.out.println("Start in "+i+" s...");
+                sleep(1000);
+            }
+        } catch (Exception e) {}
+    }
+
+
     boolean SendData(){
         try{
-            //String b = PrepareStreams(currentState);
-            p1.out.write(sb.toString());
-            p2.out.write(sb.toString());
+            if(pointScored){
+                p1.out.write(sco);
+                p2.out.write(sco);
+            }else{
+                p1.out.write(sb.toString());
+                p2.out.write(sb.toString());
+            }
             p1.out.flush();
             p2.out.flush();
             return true;
@@ -147,10 +173,7 @@ class Game extends Thread{
         }
     }
 
-
-
     void UpdateList(){
-        //update bola, players
         sb.append("Ball"+" "+Ball.x+" "+Ball.y+" "+1+" ");
         sb.append("Bar"+" "+P1bar.x+" "+P1bar.y+" "+1+" ");
         sb.append("Bar"+" "+P2bar.x+" "+P2bar.y+" "+1+" ");
@@ -159,29 +182,40 @@ class Game extends Thread{
             if(blocks[i].active)
                 sb.append("Block"+" "+blocks[i].rect.x+" "+blocks[i].rect.y+" "+1+" ");
         }
+        
         sb.append("\n");
         
     }
 
     void UpdateBall(){
-        Ball.x = (int)(Ball.x + ballDirection[0]*ballSpeed);
-        Ball.y = (int)(Ball.y + ballDirection[1]*ballSpeed);
-        
-        if(Ball.x <= 0 || Ball.x+Ball.width >= 800)
-            ballDirection[0] = -ballDirection[0];
-        if(Ball.y <= 0 || Ball.y+Ball.height >= 600)
-            ballDirection[1] = -ballDirection[1];
-        if(BallCol(P1bar)){
-            ballDirection[0] = (Math.signum(ballDirection[0])!=Math.signum((float)p1.input)) ? -ballDirection[0] : ballDirection[0];
-        }
-        if(BallCol(P2bar)){
-            ballDirection[0] = (Math.signum(ballDirection[0])!=Math.signum((float)p2.input)) ? -ballDirection[0] : ballDirection[0];
-        }
+        if(Ball.y < 10){
+            sco = sp1;
+            pointScored = true;
+        }else{
+            if(Ball.y > 570){
+                sco = sp2;
+                pointScored = true;
+            }else{
+                Ball.x = (int)(Ball.x + ballDirection[0]*ballSpeed);
+                Ball.y = (int)(Ball.y + ballDirection[1]*ballSpeed);
+                
+                if(Ball.x <= 0 || Ball.x+Ball.width >= 800)
+                    ballDirection[0] = -ballDirection[0];
+                if(Ball.y <= 0 || Ball.y+Ball.height >= 600)
+                    ballDirection[1] = -ballDirection[1];
+                if(BallCol(P1bar)){
+                    ballDirection[0] = (Math.signum(ballDirection[0])!=Math.signum((float)p1.input)) ? -ballDirection[0] : ballDirection[0];
+                }
+                if(BallCol(P2bar)){
+                    ballDirection[0] = (Math.signum(ballDirection[0])!=Math.signum((float)p2.input)) ? -ballDirection[0] : ballDirection[0];
+                }
 
-        for(int i = 0; i < blockNum; i++){
-            if(blocks[i].active){
-                if(BallCol(blocks[i].rect)){
-                    blocks[i].active = false;
+                for(int i = 0; i < blockNum; i++){
+                    if(blocks[i].active){
+                        if(BallCol(blocks[i].rect)){
+                            blocks[i].active = false;
+                        }
+                    }
                 }
             }
         }
